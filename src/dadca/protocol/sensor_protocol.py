@@ -1,3 +1,5 @@
+import logging
+
 from gradysim.protocol.interface import IProtocol
 from gradysim.protocol.messages.communication import SendMessageCommand
 from gradysim.protocol.messages.telemetry import Telemetry
@@ -9,10 +11,19 @@ from src.dadca.constant import Agent
 
 
 class SensorProtocol(IProtocol):
+    _log: logging.Logger
     packet_count: int
 
     def initialize(self) -> None:
+        self._log = logging.getLogger()
         self.packet_count = 0
+
+        self._generate_packet()
+
+    def _generate_packet(self) -> None:
+        self.packet_count += 1
+        self._log.info(f"Generated packet, current count {self.packet_count}")
+        self.provider.schedule_timer("", self.provider.current_time() + 1)
 
     def handle_timer(self, timer: str) -> None:
         self._generate_packet()
@@ -28,22 +39,15 @@ class SensorProtocol(IProtocol):
                     id=self.provider.get_id()
                 ),
             )
-
-            command = SendMessageCommand(response.model_dump_json(), default_message.agent.value)
+            command = SendMessageCommand(response.model_dump_json(), default_message.sender.id)
             self.provider.send_communication_command(command)
 
-            self._log.info(f"Sent {response['packet_count']} packets to UAV {simple_message['sender']}")
+            logging.info(f"Sent {response.package_count} packets to UAV {default_message.sender.id}")
 
             self.packet_count = 0
-
-
 
     def handle_telemetry(self, telemetry: Telemetry) -> None:
         pass
 
     def finish(self) -> None:
         pass
-
-    def _generate_packet(self) -> None:
-        self.packet_count += 1
-        self.provider.schedule_timer("", self.provider.current_time() + 1)

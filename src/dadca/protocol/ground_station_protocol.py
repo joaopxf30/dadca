@@ -23,17 +23,14 @@ class GroundStationProtocol(IProtocol):
             response = DefaultMessage.model_construct(
                 package_count=self.packet_count,
                 sender=Sender.model_construct(
-                    agent=Agent.SENSOR,
+                    agent=Agent.GROUND_STATION,
                     id=self.provider.get_id()
                 ),
             )
-
-            command = SendMessageCommand(response.model_dump_json(), default_message.agent.value)
+            command = SendMessageCommand(response.model_dump_json(), default_message.sender.id)
             self.provider.send_communication_command(command)
 
-            self._log.info(f"Sent {response['packet_count']} packets to UAV {simple_message['sender']}")
-
-            self.packet_count = 0
+            self.packet_count += default_message.packet_count
 
     def handle_telemetry(self, telemetry: Telemetry) -> None:
         pass
