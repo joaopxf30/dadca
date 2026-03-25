@@ -23,7 +23,7 @@ class SensorProtocol(IProtocol):
     def _generate_packet(self) -> None:
         self.packet_count += 1
         self._log.info(f"Generated packet, current count {self.packet_count}")
-        self.provider.schedule_timer("", self.provider.current_time() + 1)
+        self.provider.schedule_timer("", self.provider.current_time() + 10)
 
     def handle_timer(self, timer: str) -> None:
         self._generate_packet()
@@ -33,7 +33,7 @@ class SensorProtocol(IProtocol):
 
         if default_message.sender.agent == Agent.UAV:
             response = DefaultMessage.model_construct(
-                package_count=self.packet_count,
+                packet_count=self.packet_count,
                 sender=Sender.model_construct(
                     agent=Agent.SENSOR,
                     id=self.provider.get_id()
@@ -42,7 +42,8 @@ class SensorProtocol(IProtocol):
             command = SendMessageCommand(response.model_dump_json(), default_message.sender.id)
             self.provider.send_communication_command(command)
 
-            logging.info(f"Sent {response.package_count} packets to UAV {default_message.sender.id}")
+            if response.packet_count != 0:
+                logging.info(f"Sent {response.packet_count} packets to UAV {default_message.sender.id}")
 
             self.packet_count = 0
 

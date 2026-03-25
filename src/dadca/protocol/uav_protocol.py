@@ -11,7 +11,7 @@ from src.dadca.domain.sender import Sender
 from src.dadca.dadca_mobility_plugin import DADCAMobilityPlugin
 
 
-initial_waypoints = [0, 4]
+initial_waypoints = [3, 0]
 PATH = [(0, 0, 20), (100, 0, 20), (200, 0, 20), (300, 0, 20), (400, 0, 20)]
 
 
@@ -34,7 +34,7 @@ class UAVProtocol(IProtocol):
 
     def _send_heartbeat(self) -> None:
         default_message = DefaultMessage.model_construct(
-            package_count=self.packet_count,
+            packet_count=self.packet_count,
             sender=Sender.model_construct(
                 agent=Agent.UAV,
                 id=self.provider.get_id()

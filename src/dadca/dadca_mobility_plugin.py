@@ -35,6 +35,7 @@ class DADCAMobilityPlugin:
     def _initialize_telemetry_handling(self):
         def telemetry_handler(_instance: IProtocol, telemetry: Telemetry) -> DispatchReturn | None:
             if self._has_reached_target(telemetry.current_position):
+                self._logger.info(f"Reached target at {self._mission[self._current_waypoint]} with {self._current_direction}")
                 self._progress_current_waypoint()
                 self._travel_to_current_waypoint()
 
@@ -47,8 +48,8 @@ class DADCAMobilityPlugin:
 
     def _progress_current_waypoint(self) -> None:
         if (
-            self._current_waypoint == len(self._mission)
-            or self._current_waypoint == 0
+            self._current_waypoint == len(self._mission) - 1
+            or self._current_waypoint < 0
         ):
             self._reverse_direction()
 
@@ -92,6 +93,12 @@ class DADCAMobilityPlugin:
         self._logger.info("Mission: Starting mission")
 
     def execute_rendezvous(self) -> None:
+        previous_target = self._mission[self._current_waypoint]
+
         self._reverse_direction()
         self._change_current_waypoint()
         self._travel_to_current_waypoint()
+
+        current_target = self._mission[self._current_waypoint]
+
+        self._logger.info(f"Target position updated from {previous_target} to {current_target} due to rendezvous")

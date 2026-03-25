@@ -1,3 +1,5 @@
+import logging
+
 from gradysim.protocol.interface import IProtocol
 from gradysim.protocol.messages.communication import SendMessageCommand
 from gradysim.protocol.messages.telemetry import Telemetry
@@ -8,9 +10,11 @@ from src.dadca.domain.sender import Sender
 
 
 class GroundStationProtocol(IProtocol):
+    _log: logging.Logger
     packet_count: int
 
     def initialize(self) -> None:
+        self._log = logging.getLogger()
         self.packet_count = 0
 
     def handle_timer(self, timer: str) -> None:
@@ -21,7 +25,7 @@ class GroundStationProtocol(IProtocol):
 
         if default_message.sender.agent == Agent.UAV:
             response = DefaultMessage.model_construct(
-                package_count=self.packet_count,
+                packet_count=self.packet_count,
                 sender=Sender.model_construct(
                     agent=Agent.GROUND_STATION,
                     id=self.provider.get_id()
