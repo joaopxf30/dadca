@@ -5,9 +5,14 @@ from gradysim.protocol.messages.communication import BroadcastMessageCommand
 from gradysim.protocol.messages.telemetry import Telemetry
 
 from src.dadca.constant import Agent
+from src.dadca.dadca_mobility_configuration import DadcaMobilityConfiguration
 from src.dadca.domain.default_message import DefaultMessage
 from src.dadca.domain.sender import Sender
 from src.dadca.dadca_mobility_plugin import DADCAMobilityPlugin
+
+
+initial_waypoints = [0, 4]
+PATH = [(0, 0, 20), (100, 0, 20), (200, 0, 20), (300, 0, 20), (400, 0, 20)]
 
 
 class UAVProtocol(IProtocol):
@@ -17,7 +22,12 @@ class UAVProtocol(IProtocol):
 
     def initialize(self) -> None:
         self._log = logging.getLogger()
-        self._dadca = DADCAMobilityPlugin(self)
+        self._dadca = DADCAMobilityPlugin(self, DadcaMobilityConfiguration())
+
+        self._dadca.start_mission(
+            initial_waypoint=initial_waypoints.pop(),
+            path=PATH
+        )
 
         self.packet_count = 0
         self._send_heartbeat()
@@ -47,7 +57,7 @@ class UAVProtocol(IProtocol):
             self.packet_count += default_message.packet_count
             self._dadca.execute_rendezvous()
         elif default_message.sender.agent == Agent.GROUND_STATION:
-            self.packet_count = 0
+            self.packet_count = 1
         else:
             raise NotImplementedError(f"There is no current support to agent {default_message.sender.agent}")
 
