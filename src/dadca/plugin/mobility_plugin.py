@@ -8,18 +8,18 @@ from gradysim.protocol.messages.telemetry import Telemetry
 from gradysim.protocol.plugin.dispatcher import create_dispatcher, DispatchReturn
 from gradysim.protocol.position import Position, squared_distance
 
-from src.dadca.dadca_mobility_configuration import DadcaMobilityConfiguration
+from src.dadca.plugin.mobility_configuration import MobilityConfiguration
 
 
 class Movement(Enum):
     FORWARD = 1
     BACKWARD = -1
 
-class DADCAMobilityPlugin:
+class MobilityPlugin:
     def __init__(
         self,
         protocol: IProtocol,
-        configuration: DadcaMobilityConfiguration,
+        configuration: MobilityConfiguration,
     ):
         self._dispatcher = create_dispatcher(protocol)
         self._instance = protocol
@@ -35,7 +35,6 @@ class DADCAMobilityPlugin:
     def _initialize_telemetry_handling(self):
         def telemetry_handler(_instance: IProtocol, telemetry: Telemetry) -> DispatchReturn | None:
             if self._has_reached_target(telemetry.current_position):
-                self._logger.info(f"Reached target at {self._mission[self._current_waypoint]} with {self._current_direction}")
                 self._progress_current_waypoint()
                 self._travel_to_current_waypoint()
 
@@ -93,12 +92,6 @@ class DADCAMobilityPlugin:
         self._logger.info("Mission: Starting mission")
 
     def execute_rendezvous(self) -> None:
-        previous_target = self._mission[self._current_waypoint]
-
         self._reverse_direction()
         self._change_current_waypoint()
         self._travel_to_current_waypoint()
-
-        current_target = self._mission[self._current_waypoint]
-
-        self._logger.info(f"Target position updated from {previous_target} to {current_target} due to rendezvous")

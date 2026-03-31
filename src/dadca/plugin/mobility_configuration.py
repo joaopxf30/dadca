@@ -2,6 +2,6 @@ from dataclasses import dataclass
 
 
 @dataclass
-class DadcaMobilityConfiguration:
+class MobilityConfiguration:
     speed: float = 5
     tolerance: float = 0.5
