@@ -1,6 +1,5 @@
 from gradysim.simulator.handler.communication import CommunicationHandler, CommunicationMedium
 from gradysim.simulator.handler.mobility import MobilityHandler
-
 from gradysim.simulator.handler.timer import TimerHandler
 from gradysim.simulator.handler.visualization import VisualizationHandler, VisualizationConfiguration
 from gradysim.simulator.simulation import SimulationBuilder, SimulationConfiguration
@@ -36,9 +35,11 @@ def main():
     )))
     builder.add_handler(MobilityHandler())
     builder.add_handler(VisualizationHandler(VisualizationConfiguration(
-        x_range=(0, 400),
-        y_range=(-150, 150),
-        z_range=(0, 150)
+        open_browser=True,
+        x_range=(-400, 400),
+        y_range=(-400, 400),
+        z_range=(0, 150),
+        update_rate=0.05
     )))
 
     # Building & starting
