@@ -36,7 +36,7 @@ class MobilityPlugin:
         def telemetry_handler(_instance: IProtocol, telemetry: Telemetry) -> DispatchReturn | None:
             if self._has_reached_target(telemetry.current_position):
                 self._progress_current_waypoint()
-                self._travel_to_current_waypoint()
+                self.travel_to_current_waypoint()
 
         self._dispatcher.register_handle_telemetry(telemetry_handler)
 
@@ -50,21 +50,21 @@ class MobilityPlugin:
             self._current_waypoint == len(self._mission) - 1
             or self._current_waypoint < 0
         ):
-            self._reverse_direction()
+            self.reverse_direction()
 
-        self._change_current_waypoint()
+        self.change_current_waypoint()
 
-    def _reverse_direction(self) -> None:
+    def reverse_direction(self) -> None:
         if self._current_direction == Movement.FORWARD:
             self._current_direction = Movement.BACKWARD
 
         else:
             self._current_direction = Movement.FORWARD
 
-    def _change_current_waypoint(self) -> None:
+    def change_current_waypoint(self) -> None:
         self._current_waypoint += self._current_direction.value
 
-    def _travel_to_current_waypoint(self) -> None:
+    def travel_to_current_waypoint(self) -> None:
         if self._current_waypoint is None:
             return
 
@@ -84,14 +84,9 @@ class MobilityPlugin:
         self._current_waypoint = initial_waypoint
         self._current_direction = Movement.FORWARD
 
-        self._travel_to_current_waypoint()
+        self.travel_to_current_waypoint()
 
         speed_command = SetSpeedMobilityCommand(self._configuration.speed)
         self._instance.provider.send_mobility_command(speed_command)
 
         self._logger.info("Mission: Starting mission")
-
-    def execute_rendezvous(self) -> None:
-        self._reverse_direction()
-        self._change_current_waypoint()
-        self._travel_to_current_waypoint()

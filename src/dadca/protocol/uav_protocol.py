@@ -59,13 +59,22 @@ class UAVProtocol(IProtocol):
 
         if default_message.sender.agent == Agent.SENSOR:
             self.packet_count += default_message.packet_count
+
         elif default_message.sender.agent == Agent.UAV:
-            self.packet_count += default_message.packet_count
-            self._mobility_plugin.execute_rendezvous()
+            if not self._battery_plugin.is_critical_battery:
+                self.packet_count += default_message.packet_count
+                self.execute_rendezvous()
+
         elif default_message.sender.agent == Agent.GROUND_STATION:
             self.packet_count = 1
+
         else:
             raise NotImplementedError(f"There is no current support to agent {default_message.sender.agent}")
+
+    def execute_rendezvous(self) -> None:
+        self._mobility_plugin.reverse_direction()
+        self._mobility_plugin.change_current_waypoint()
+        self._mobility_plugin.travel_to_current_waypoint()
 
     def move_to_energy_station(self):
         mobility_command = GotoCoordsMobilityCommand(*ENERGY_STATION_POSITION)

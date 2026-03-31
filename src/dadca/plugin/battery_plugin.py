@@ -18,8 +18,8 @@ class BatteryPlugin:
         self._logger = logging.getLogger()
 
         self._previous_position: Position | None = None
-        self._is_critical_battery = False
-        self._battery: float = 100
+        self.is_critical_battery = False
+        self.battery: float = 100
 
         self._critical_battery_action: Callable | None = None
         self._recharge_battery_scenario: Callable | None = None
@@ -30,13 +30,13 @@ class BatteryPlugin:
 
             if self._previous_position is not None:
                 battery_cost = self._compute_battery_cost(self._previous_position, current_position)
-                self._battery -= battery_cost
+                self.battery -= battery_cost
 
                 if (
-                    self._is_critical_battery is False
+                    self.is_critical_battery is False
                     and self._has_reached_critical_battery(current_position)
                 ):
-                    self._is_critical_battery = True
+                    self.is_critical_battery = True
 
                     if self._critical_battery_action is None:
                         raise RuntimeError("Critical battery action not set yet")
@@ -55,9 +55,7 @@ class BatteryPlugin:
         """
         battery_cost = self._compute_battery_cost(current_position, ENERGY_STATION_POSITION)
 
-        self._logger.info(f"{self._battery} <= {battery_cost} + {self._configuration.battery_tolerance}")
-
-        return self._battery <= battery_cost + self._configuration.battery_tolerance
+        return self.battery <= battery_cost + self._configuration.battery_tolerance
 
     def _compute_battery_cost(self, current_position: Position, target_position: Position) -> float:
         distance = squared_distance(current_position, target_position) ** 0.5
