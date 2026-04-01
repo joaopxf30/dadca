@@ -87,8 +87,11 @@ class MobilityPlugin:
         self._mission = path
         self.current_waypoint = initial_waypoint
         self._current_direction = Movement.FORWARD
-        self._logger.info(f"This is my wait: {wait}")
-        time.sleep(wait)
+
+        self._instance.provider.schedule_timer(
+            "start_mission",
+            self._instance.provider.current_time() + wait
+        )
         self.travel_to_current_waypoint()
 
         speed_command = SetSpeedMobilityCommand(self._configuration.speed)

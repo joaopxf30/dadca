@@ -32,21 +32,23 @@ class UAVProtocol(IProtocol):
             critical_battery_action=self.move_to_energy_station,
             recharge_battery_action=self.get_back_to_mission,
         )
-        self._mobility_plugin.start_mission(
-            initial_waypoint=initial_waypoints.pop(),
-            path=PATH,
-            wait=UAVProtocol.wait,
-        )
 
         self.delay()
         self.packet_count = 0
         self.lamport_clock = 0
 
+        self._delay_simulation()
         self._send_heartbeat()
 
     @classmethod
     def delay(cls):
         cls.wait += 3
+
+    def _delay_simulation(self):
+        self.provider.schedule_timer(
+            Timer.START_MISSION.value,
+            self.provider.current_time() + self.wait
+        )
 
     def _send_heartbeat(self) -> None:
         self.lamport_clock += 1
@@ -70,6 +72,12 @@ class UAVProtocol(IProtocol):
 
         elif timer == Timer.BATTERY_RECHARGE.value:
             self._battery_plugin.recharge_battery()
+
+        elif timer == Timer.START_MISSION.value:
+            self._mobility_plugin.start_mission(
+                initial_waypoint=initial_waypoints.pop(),
+                path=PATH,
+            )
 
         else:
             raise NotImplementedError(f"There is no current support to timer {timer}")
