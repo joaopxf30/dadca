@@ -13,10 +13,13 @@ from src.dadca.constant import Agent
 class SensorProtocol(IProtocol):
     _log: logging.Logger
     packet_count: int
+    lamport_clock: int
 
     def initialize(self) -> None:
         self._log = logging.getLogger()
+
         self.packet_count = 0
+        self.lamport_clock = 0
 
         self._generate_packet()
 
@@ -30,10 +33,13 @@ class SensorProtocol(IProtocol):
 
     def handle_packet(self, message: str) -> None:
         default_message = DefaultMessage.model_validate_json(message)
+        self._update_clock_on_receive(default_message.lamport_clock)
 
         if default_message.sender.agent == Agent.UAV:
+            self.lamport_clock += 1
             response = DefaultMessage.model_construct(
                 packet_count=self.packet_count,
+                lamport_clock=self.lamport_clock,
                 sender=Sender.model_construct(
                     agent=Agent.SENSOR,
                     id=self.provider.get_id()
@@ -46,6 +52,10 @@ class SensorProtocol(IProtocol):
                 logging.info(f"Sent {response.packet_count} packets to UAV {default_message.sender.id}")
 
             self.packet_count = 0
+
+    def _update_clock_on_receive(self, lamport_clock: int) -> None:
+        new_lamport_cock = max(self.lamport_clock, lamport_clock) + 1
+        self.lamport_clock = new_lamport_cock
 
     def handle_telemetry(self, telemetry: Telemetry) -> None:
         pass

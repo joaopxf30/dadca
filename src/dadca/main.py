@@ -12,7 +12,7 @@ from src.dadca.protocol.uav_protocol import UAVProtocol
 
 def main():
     config = SimulationConfiguration(
-        duration=1000
+        duration=10000
     )
     builder = SimulationBuilder(config)
 
@@ -23,9 +23,9 @@ def main():
     builder.add_node(SensorProtocol, (400, 0, 0))
 
     # Instantiating 3 UAVs
-    builder.add_node(UAVProtocol, (100, 0, 0))
-    builder.add_node(UAVProtocol, (200, 0, 0))
-    builder.add_node(UAVProtocol, (300, 0, 0))
+    builder.add_node(UAVProtocol, (0, 0, 0))
+    builder.add_node(UAVProtocol, (0, 0, 0))
+    builder.add_node(UAVProtocol, (0, 0, 0))
 
     # Instantiating ground station at (0,0,0)
     builder.add_node(GroundStationProtocol, (0, 0, 0))
@@ -41,7 +41,7 @@ def main():
     builder.add_handler(MobilityHandler())
     builder.add_handler(VisualizationHandler(VisualizationConfiguration(
         x_range=(-300, 500),
-        y_range=(-100, 100),
+        y_range=(-350, 350),
         z_range=(0, 150),
         update_rate=0.05
     )))

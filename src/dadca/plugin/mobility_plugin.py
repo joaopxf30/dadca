@@ -1,4 +1,5 @@
 import logging
+import time
 from enum import Enum
 from typing import Optional
 
@@ -29,26 +30,28 @@ class MobilityPlugin:
         self._initialize_telemetry_handling()
 
         self._mission: Optional[list[Position]] = None
-        self._current_waypoint: Optional[int] = None
+        self.on_mission: bool = False
+        self.current_waypoint: Optional[int] = None
         self._current_direction: Optional[Movement] = None
 
     def _initialize_telemetry_handling(self):
         def telemetry_handler(_instance: IProtocol, telemetry: Telemetry) -> DispatchReturn | None:
-            if self._has_reached_target(telemetry.current_position):
+            if self.has_reached_target(telemetry.current_position):
+                self.on_mission = True
                 self._progress_current_waypoint()
                 self.travel_to_current_waypoint()
 
         self._dispatcher.register_handle_telemetry(telemetry_handler)
 
-    def _has_reached_target(self, current_position: Position) -> bool:
-        target_position = self._mission[self._current_waypoint]
+    def has_reached_target(self, current_position: Position) -> bool:
+        target_position = self._mission[self.current_waypoint]
 
         return squared_distance(current_position, target_position) <= self._configuration.tolerance ** 2
 
     def _progress_current_waypoint(self) -> None:
         if (
-            self._current_waypoint == len(self._mission) - 1
-            or self._current_waypoint < 0
+            self.current_waypoint == len(self._mission) - 1
+            or self.current_waypoint < 0
         ):
             self.reverse_direction()
 
@@ -62,28 +65,30 @@ class MobilityPlugin:
             self._current_direction = Movement.FORWARD
 
     def change_current_waypoint(self) -> None:
-        self._current_waypoint += self._current_direction.value
+        self.current_waypoint += self._current_direction.value
 
     def travel_to_current_waypoint(self) -> None:
-        if self._current_waypoint is None:
+        if self.current_waypoint is None:
             return
 
-        mobility_command = GotoCoordsMobilityCommand(*self._mission[self._current_waypoint])
+        mobility_command = GotoCoordsMobilityCommand(*self._mission[self.current_waypoint])
         self._instance.provider.send_mobility_command(mobility_command)
 
     def start_mission(
         self,
         initial_waypoint: int,
         path: list[Position],
+        wait: float = 0
     ) -> None:
         """
         Send the UAVs to the initial position to start collecting data from the sensors.
 
         """
         self._mission = path
-        self._current_waypoint = initial_waypoint
+        self.current_waypoint = initial_waypoint
         self._current_direction = Movement.FORWARD
-
+        self._logger.info(f"This is my wait: {wait}")
+        time.sleep(wait)
         self.travel_to_current_waypoint()
 
         speed_command = SetSpeedMobilityCommand(self._configuration.speed)
