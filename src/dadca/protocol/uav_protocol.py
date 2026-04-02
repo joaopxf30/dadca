@@ -6,12 +6,13 @@ from gradysim.protocol.messages.mobility import GotoCoordsMobilityCommand
 from gradysim.protocol.messages.telemetry import Telemetry
 
 from src.dadca.config import initial_waypoints, PATH, ENERGY_STATION_POSITION
-from src.dadca.constant import Agent, Timer
+from src.dadca.constant import Agent, Timer, Movement
+from src.dadca.domain.package_message import PacketMessage
 from src.dadca.plugin.battery_configuration import BatteryConfiguration
 from src.dadca.plugin.battery_plugin import BatteryPlugin
 from src.dadca.plugin.mobility_configuration import MobilityConfiguration
-from src.dadca.domain.default_message import DefaultMessage
-from src.dadca.domain.sender import Sender
+from src.dadca.domain.uav_message import UAVMessage
+from src.dadca.domain.default_message import Sender, DefaultMessage
 from src.dadca.plugin.mobility_plugin import MobilityPlugin
 
 
@@ -23,48 +24,25 @@ class UAVProtocol(IProtocol):
     packet_count: int
     wait: float = 0
 
+    @classmethod
+    def delay(cls):
+        cls.wait += 20
+
     def initialize(self) -> None:
         self._log = logging.getLogger()
         self._mobility_plugin = MobilityPlugin(self, MobilityConfiguration())
         self._battery_plugin = BatteryPlugin(self, BatteryConfiguration())
 
         self._battery_plugin.handle_battery(
-            critical_battery_action=self.move_to_energy_station,
+            critical_battery_action=self._move_to_energy_station,
             recharge_battery_action=self.get_back_to_mission,
         )
 
-        self.delay()
         self.packet_count = 0
         self.lamport_clock = 0
 
-        self._delay_simulation()
+        self._start_flight()
         self._send_heartbeat()
-
-    @classmethod
-    def delay(cls):
-        cls.wait += 3
-
-    def _delay_simulation(self):
-        self.provider.schedule_timer(
-            Timer.START_MISSION.value,
-            self.provider.current_time() + self.wait
-        )
-
-    def _send_heartbeat(self) -> None:
-        self.lamport_clock += 1
-
-        default_message = DefaultMessage.model_construct(
-            packet_count=self.packet_count,
-            lamport_clock=self.lamport_clock,
-            sender=Sender.model_construct(
-                agent=Agent.UAV,
-                id=self.provider.get_id()
-            )
-        )
-        command = BroadcastMessageCommand(default_message.model_dump_json())
-        self.provider.send_communication_command(command)
-
-        self.provider.schedule_timer(Timer.HEARTBEAT.value, self.provider.current_time() + 1)
 
     def handle_timer(self, timer: str) -> None:
         if timer == Timer.HEARTBEAT.value:
@@ -87,15 +65,21 @@ class UAVProtocol(IProtocol):
         self._update_clock_on_receive(default_message.lamport_clock)
 
         if default_message.sender.agent == Agent.SENSOR:
-            self.packet_count += default_message.packet_count
+            message = PacketMessage.model_validate_json(message)
+            self.packet_count += message.packet_count
 
         elif default_message.sender.agent == Agent.UAV:
-            if self._mobility_plugin.on_mission and not self._battery_plugin.is_critical_battery:
-                self.packet_count += default_message.packet_count
-                self.execute_rendezvous()
+            message = UAVMessage.model_validate_json(message)
+
+            if self._mobility_plugin.on_mission:
+                self.packet_count += message.packet_count
+
+                if self._is_rendezvous(message.movement, message.waypoint):
+                    self._log.info("Rendezvous happened")
+                    self._execute_rendezvous()
 
         elif default_message.sender.agent == Agent.GROUND_STATION:
-            self.packet_count = 1
+            self.packet_count = 0
 
         elif default_message.sender.agent == Agent.ENERGY_STATION:
             # self.enter_energy_station()
@@ -104,21 +88,59 @@ class UAVProtocol(IProtocol):
         else:
             raise NotImplementedError(f"There is no current support to agent {default_message.sender.agent}")
 
+    def handle_telemetry(self, telemetry: Telemetry) -> None:
+        pass
+
+    def _start_flight(self):
+        self.provider.schedule_timer(
+            Timer.START_MISSION.value,
+            self.provider.current_time() + self.wait
+        )
+        self.delay()
+
+    def _send_heartbeat(self) -> None:
+        self.lamport_clock += 1
+
+        default_message = UAVMessage.model_construct(
+            lamport_clock=self.lamport_clock,
+            packet_count=self.packet_count,
+            waypoint=self._mobility_plugin.current_waypoint,
+            movement=self._mobility_plugin.current_direction,
+            battery=self._battery_plugin.battery,
+            sender=Sender.model_construct(
+                agent=Agent.UAV,
+                id=self.provider.get_id()
+            )
+        )
+
+        command = BroadcastMessageCommand(default_message.model_dump_json())
+        self.provider.send_communication_command(command)
+
+        self.provider.schedule_timer(Timer.HEARTBEAT.value, self.provider.current_time() + 1)
+
     def _update_clock_on_receive(self, lamport_clock: int) -> None:
         new_lamport_cock = max(self.lamport_clock, lamport_clock) + 1
         self.lamport_clock = new_lamport_cock
 
-    def execute_rendezvous(self) -> None:
+    def _is_rendezvous(self, direction: Movement, waypoint: int) -> bool:
+        return (
+            self._mobility_plugin.current_direction != direction and (
+                direction == Movement.FORWARD and waypoint > self._mobility_plugin.current_waypoint
+                or direction == Movement.BACKWARD and waypoint < self._mobility_plugin.current_waypoint
+            )
+        )
+
+    def _execute_rendezvous(self) -> None:
         self._mobility_plugin.reverse_direction()
         self._mobility_plugin.change_current_waypoint()
         self._mobility_plugin.travel_to_current_waypoint()
 
-    def move_to_energy_station(self):
+    def _move_to_energy_station(self):
         self._mobility_plugin.on_mission = False
         mobility_command = GotoCoordsMobilityCommand(*ENERGY_STATION_POSITION)
         self.provider.send_mobility_command(mobility_command)
 
-    def enter_energy_station(self):
+    def _enter_energy_station(self):
         mobility_command = GotoCoordsMobilityCommand(*ENERGY_STATION_POSITION)
         self.provider.send_mobility_command(mobility_command)
 
@@ -127,9 +149,6 @@ class UAVProtocol(IProtocol):
             initial_waypoint=self._mobility_plugin.current_waypoint,
             path=PATH
         )
-
-    def handle_telemetry(self, telemetry: Telemetry) -> None:
-        pass
 
     def finish(self) -> None:
         self._log.info(f"Final Lamport clock: {self.lamport_clock}")

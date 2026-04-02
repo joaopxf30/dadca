@@ -1,12 +1,14 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
-from src.dadca.domain.sender import Sender
+from src.dadca.constant import Agent
 
+
+class Sender(BaseModel):
+    agent: Agent
+    id: int
 
 class DefaultMessage(BaseModel):
-    packet_count: int | None = None
     lamport_clock: int
     sender: Sender
 
-    model_config = ConfigDict(frozen=True)
 

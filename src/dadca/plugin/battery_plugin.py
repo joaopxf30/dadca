@@ -19,7 +19,7 @@ class BatteryPlugin:
         self._logger = logging.getLogger()
 
         self._previous_position: Position | None = None
-        self.is_critical_battery = False
+        self.is_charging = False
         self.battery: float = 100
 
         self._critical_battery_action: Callable | None = None
@@ -34,16 +34,17 @@ class BatteryPlugin:
                 self.battery -= battery_cost
 
                 if (
-                    self.is_critical_battery is False
+                    self.is_charging is False
                     and self._has_reached_critical_battery(current_position)
                 ):
-                    self.is_critical_battery = True
+                    self.is_charging = True
 
                     if self._critical_battery_action is None:
                         raise RuntimeError("Critical battery action not set yet")
 
                     self._logger.info("Critical battery has been reached. Agent is moving to Energy Station")
                     self._critical_battery_action()
+
 
             self._previous_position = current_position
 
@@ -82,11 +83,10 @@ class BatteryPlugin:
             )
 
             self.battery += self._configuration.charge_per_time_rate
-            self._logger.info(f"Battery is {self.battery}")
 
         else:
             self.battery = 100
-            self.is_critical_battery = False
+            self.is_charging = False
 
             if self._recharge_battery_action is None:
                 raise RuntimeError("Recharge battery action not set yet")

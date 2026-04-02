@@ -1,6 +1,4 @@
 import logging
-import time
-from enum import Enum
 from typing import Optional
 
 from gradysim.protocol.interface import IProtocol
@@ -9,12 +7,9 @@ from gradysim.protocol.messages.telemetry import Telemetry
 from gradysim.protocol.plugin.dispatcher import create_dispatcher, DispatchReturn
 from gradysim.protocol.position import Position, squared_distance
 
+from src.dadca.constant import Movement
 from src.dadca.plugin.mobility_configuration import MobilityConfiguration
 
-
-class Movement(Enum):
-    FORWARD = 1
-    BACKWARD = -1
 
 class MobilityPlugin:
     def __init__(
@@ -26,17 +21,19 @@ class MobilityPlugin:
         self._instance = protocol
         self._configuration = configuration
         self._logger = logging.getLogger()
-
         self._initialize_telemetry_handling()
-
         self._mission: Optional[list[Position]] = None
+
         self.on_mission: bool = False
         self.current_waypoint: Optional[int] = None
-        self._current_direction: Optional[Movement] = None
+        self.current_direction: Optional[Movement] = None
 
     def _initialize_telemetry_handling(self):
         def telemetry_handler(_instance: IProtocol, telemetry: Telemetry) -> DispatchReturn | None:
-            if self.has_reached_target(telemetry.current_position):
+            if (
+                self.current_waypoint is not None
+                and self.has_reached_target(telemetry.current_position)
+            ):
                 self.on_mission = True
                 self._progress_current_waypoint()
                 self.travel_to_current_waypoint()
@@ -51,21 +48,21 @@ class MobilityPlugin:
     def _progress_current_waypoint(self) -> None:
         if (
             self.current_waypoint == len(self._mission) - 1
-            or self.current_waypoint < 0
+            or self.current_waypoint == 0
         ):
             self.reverse_direction()
 
         self.change_current_waypoint()
 
     def reverse_direction(self) -> None:
-        if self._current_direction == Movement.FORWARD:
-            self._current_direction = Movement.BACKWARD
+        if self.current_direction == Movement.FORWARD:
+            self.current_direction = Movement.BACKWARD
 
         else:
-            self._current_direction = Movement.FORWARD
+            self.current_direction = Movement.FORWARD
 
     def change_current_waypoint(self) -> None:
-        self.current_waypoint += self._current_direction.value
+        self.current_waypoint += self.current_direction.value
 
     def travel_to_current_waypoint(self) -> None:
         if self.current_waypoint is None:
@@ -86,15 +83,12 @@ class MobilityPlugin:
         """
         self._mission = path
         self.current_waypoint = initial_waypoint
-        self._current_direction = Movement.FORWARD
+        self.current_direction = Movement.FORWARD
 
-        self._instance.provider.schedule_timer(
-            "start_mission",
-            self._instance.provider.current_time() + wait
-        )
         self.travel_to_current_waypoint()
 
         speed_command = SetSpeedMobilityCommand(self._configuration.speed)
         self._instance.provider.send_mobility_command(speed_command)
 
         self._logger.info("Mission: Starting mission")
+

@@ -5,8 +5,7 @@ from gradysim.protocol.messages.communication import SendMessageCommand
 from gradysim.protocol.messages.telemetry import Telemetry
 
 from src.dadca.constant import Agent
-from src.dadca.domain.default_message import DefaultMessage
-from src.dadca.domain.sender import Sender
+from src.dadca.domain.default_message import Sender, DefaultMessage
 
 
 class EnergyStationProtocol(IProtocol):

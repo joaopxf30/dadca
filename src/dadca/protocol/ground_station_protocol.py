@@ -5,8 +5,9 @@ from gradysim.protocol.messages.communication import SendMessageCommand
 from gradysim.protocol.messages.telemetry import Telemetry
 
 from src.dadca.constant import Agent
-from src.dadca.domain.default_message import DefaultMessage
-from src.dadca.domain.sender import Sender
+from src.dadca.domain.package_message import PacketMessage
+from src.dadca.domain.uav_message import UAVMessage
+from src.dadca.domain.default_message import Sender, DefaultMessage
 
 
 class GroundStationProtocol(IProtocol):
@@ -29,7 +30,8 @@ class GroundStationProtocol(IProtocol):
 
         if default_message.sender.agent == Agent.UAV:
             self.lamport_clock += 1
-            response = DefaultMessage.model_construct(
+            message = UAVMessage.model_validate_json(message)
+            response = PacketMessage.model_construct(
                 packet_count=self.packet_count,
                 lamport_clock=self.lamport_clock,
                 sender=Sender.model_construct(
@@ -37,10 +39,10 @@ class GroundStationProtocol(IProtocol):
                     id=self.provider.get_id()
                 ),
             )
-            command = SendMessageCommand(response.model_dump_json(), default_message.sender.id)
+            command = SendMessageCommand(response.model_dump_json(), message.sender.id)
             self.provider.send_communication_command(command)
 
-            self.packet_count += default_message.packet_count
+            self.packet_count += message.packet_count
 
     def _update_clock_on_receive(self, lamport_clock: int) -> None:
         new_lamport_cock = max(self.lamport_clock, lamport_clock) + 1
