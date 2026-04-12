@@ -19,8 +19,10 @@ class BatteryPlugin:
         self._logger = logging.getLogger()
 
         self._previous_position: Position | None = None
-        self.is_charging = False
+        self.is_critical = False
         self.battery: float = 100
+
+        self._initialize_telemetry_handling()
 
         self._critical_battery_action: Callable | None = None
         self._recharge_battery_action: Callable | None = None
@@ -34,23 +36,22 @@ class BatteryPlugin:
                 self.battery -= battery_cost
 
                 if (
-                    self.is_charging is False
-                    and self._has_reached_critical_battery(current_position)
+                    self.is_critical is False
+                    and self.has_reached_critical_battery(current_position)
                 ):
-                    self.is_charging = True
-
-                    if self._critical_battery_action is None:
-                        raise RuntimeError("Critical battery action not set yet")
-
+                    self.is_critical = True
                     self._logger.info("Critical battery has been reached. Agent is moving to Energy Station")
-                    self._critical_battery_action()
 
+                    self._instance.provider.schedule_timer(
+                        Timer.BATTERY.value,
+                        self._instance.provider.current_time()
+                    )
 
             self._previous_position = current_position
 
         self._dispatcher.register_handle_telemetry(telemetry_handler)
 
-    def _has_reached_critical_battery(self, current_position: Position) -> bool:
+    def has_reached_critical_battery(self, current_position: Position) -> bool:
         """
         Check if battery station is reacheable
 
@@ -65,20 +66,10 @@ class BatteryPlugin:
 
         return battery_cost
 
-    def handle_battery(
-        self,
-        critical_battery_action: Callable,
-        recharge_battery_action: Callable | None,
-    ):
-        self._critical_battery_action = critical_battery_action
-        self._recharge_battery_action = recharge_battery_action
-
-        self._initialize_telemetry_handling()
-
     def recharge_battery(self):
         if self.battery < 100:
             self._instance.provider.schedule_timer(
-                Timer.BATTERY_RECHARGE.value,
+                Timer.BATTERY.value,
                 self._instance.provider.current_time() + 1
             )
 
@@ -86,7 +77,7 @@ class BatteryPlugin:
 
         else:
             self.battery = 100
-            self.is_charging = False
+            self.is_critical = False
 
             if self._recharge_battery_action is None:
                 raise RuntimeError("Recharge battery action not set yet")

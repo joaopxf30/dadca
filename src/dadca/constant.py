@@ -9,7 +9,7 @@ class Agent(Enum):
 
 
 class Timer(Enum):
-    BATTERY_RECHARGE = "BATTERY_RECHARGE"
+    BATTERY = "BATTERY"
     HEARTBEAT = "HEARTBEAT"
     START_MISSION = "START_MISSION"
 

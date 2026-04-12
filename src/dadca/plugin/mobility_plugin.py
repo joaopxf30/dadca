@@ -25,6 +25,7 @@ class MobilityPlugin:
         self._mission: Optional[list[Position]] = None
 
         self.on_mission: bool = False
+        self.last_uav_found: Optional[int] = None
         self.current_waypoint: Optional[int] = None
         self.current_direction: Optional[Movement] = None
 
@@ -75,7 +76,7 @@ class MobilityPlugin:
         self,
         initial_waypoint: int,
         path: list[Position],
-        wait: float = 0
+        direction: Movement = Movement.FORWARD,
     ) -> None:
         """
         Send the UAVs to the initial position to start collecting data from the sensors.
@@ -83,7 +84,8 @@ class MobilityPlugin:
         """
         self._mission = path
         self.current_waypoint = initial_waypoint
-        self.current_direction = Movement.FORWARD
+        self.current_direction = direction
+        self.last_uav_found = None
 
         self.travel_to_current_waypoint()
 

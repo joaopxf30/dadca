@@ -52,7 +52,7 @@ class SensorProtocol(IProtocol):
     def _generate_packet(self) -> None:
         self.packet_count += 1
         # self._log.info(f"Generated packet, current count {self.packet_count}")
-        self.provider.schedule_timer("", self.provider.current_time() + 10)
+        self.provider.schedule_timer("", self.provider.current_time() + 4)
 
     def _update_clock_on_receive(self, lamport_clock: int) -> None:
         new_lamport_cock = max(self.lamport_clock, lamport_clock) + 1

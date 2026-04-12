@@ -16,27 +16,32 @@ def main():
     )
     builder = SimulationBuilder(config)
 
-    # Instantiating 4 sensors in fixed positions
+    # Instantiating 7 sensors in fixed positions
+    builder.add_node(SensorProtocol, (50, 0, 0))
     builder.add_node(SensorProtocol, (100, 0, 0))
-    builder.add_node(SensorProtocol, (200, 0, 0))
+    builder.add_node(SensorProtocol, (150, 0, 0))
+    builder.add_node(SensorProtocol, (250, 0, 0))
     builder.add_node(SensorProtocol, (300, 0, 0))
-    builder.add_node(SensorProtocol, (400, 0, 0))
+    builder.add_node(SensorProtocol, (350, 0, 0))
+    builder.add_node(SensorProtocol, (450, 0, 0))
 
     # Instantiating 3 UAVs
     builder.add_node(UAVProtocol, (0, 0, 0))
     builder.add_node(UAVProtocol, (0, 0, 0))
     builder.add_node(UAVProtocol, (0, 0, 0))
+    # builder.add_node(UAVProtocol, (0, 0, 0))
+    # builder.add_node(UAVProtocol, (0, 0, 0))
 
     # Instantiating ground station at (0,0,0)
     builder.add_node(GroundStationProtocol, (0, 0, 0))
 
     # Instantiating energy station
-    builder.add_node(EnergyStationProtocol, (200, 346.41, 0))
+    builder.add_node(EnergyStationProtocol, (225, 389.71, 0))
 
     # Adding required handlers
     builder.add_handler(TimerHandler())
     builder.add_handler(CommunicationHandler(CommunicationMedium(
-        transmission_range=30
+        transmission_range=20
     )))
     builder.add_handler(MobilityHandler())
     builder.add_handler(VisualizationHandler(VisualizationConfiguration(
