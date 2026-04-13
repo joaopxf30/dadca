@@ -10,6 +10,7 @@ class Agent(Enum):
 
 class Timer(Enum):
     BATTERY = "BATTERY"
+    CLEAR_RENDEZVOUS = "CLEAR_RENDEZVOUS"
     HEARTBEAT = "HEARTBEAT"
     START_MISSION = "START_MISSION"
 

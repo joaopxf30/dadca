@@ -53,6 +53,9 @@ class UAVProtocol(IProtocol):
             self._move_to_energy_station()
             self._battery_plugin.recharge_battery()
 
+        elif timer == Timer.CLEAR_RENDEZVOUS.value:
+            self._mobility_plugin.ready_to_rendesvouz = True
+
         else:
             raise NotImplementedError(f"There is no current support to timer {timer}")
 
@@ -70,27 +73,12 @@ class UAVProtocol(IProtocol):
             if self._mobility_plugin.on_mission:
                 self.packet_count += message.packet_count
 
-                if message.do_rendezvous:
+                if self._is_rendezvous():
                     self._execute_rendezvous()
-                    self._mobility_plugin.last_uav_found = message.sender.id
-
-                elif self._is_rendezvous(message.sender.id):
-                    self._execute_rendezvous()
-                    self._mobility_plugin.last_uav_found = message.sender.id
-
-                    self.lamport_clock += 1
-                    default_message = UAVMessage.model_construct(
-                        lamport_clock=self.lamport_clock,
-                        packet_count=self.packet_count,
-                        do_rendezvous=True,
-                        battery=self._battery_plugin.battery,
-                        sender=Sender.model_construct(
-                            agent=Agent.UAV,
-                            id=self.provider.get_id()
-                        )
+                    self.provider.schedule_timer(
+                        Timer.CLEAR_RENDEZVOUS.value,
+                        self.provider.current_time() + 2
                     )
-                    command = SendMessageCommand(default_message.model_dump_json(), message.sender.id)
-                    self.provider.send_communication_command(command)
 
         elif default_message.sender.agent == Agent.GROUND_STATION:
             self.packet_count = 0
@@ -135,16 +123,14 @@ class UAVProtocol(IProtocol):
         new_lamport_cock = max(self.lamport_clock, lamport_clock) + 1
         self.lamport_clock = new_lamport_cock
 
-    def _is_rendezvous(self, uav_id: int) -> bool:
-        return (
-            self._mobility_plugin.last_uav_found is None
-            or self._mobility_plugin.last_uav_found != uav_id
-        )
+    def _is_rendezvous(self) -> bool:
+        return self._mobility_plugin.ready_to_rendesvouz
 
     def _execute_rendezvous(self) -> None:
         self._mobility_plugin.reverse_direction()
         self._mobility_plugin.change_current_waypoint()
         self._mobility_plugin.travel_to_current_waypoint()
+        self._mobility_plugin.ready_to_rendesvouz = False
 
         self._log.info(
             f"Rendezvous happened: now i am moving in {self._mobility_plugin.current_direction} "
