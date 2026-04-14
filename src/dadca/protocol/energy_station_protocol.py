@@ -13,14 +13,17 @@ class EnergyStationProtocol(IProtocol):
     _log: logging.Logger
     lamport_clock: int
     priority: int
-    _newer_group: bool | None = None
+    _newer_group: bool
 
     def initialize(self) -> None:
         self.lamport_clock = 0
         self.priority = 1
         self._log = logging.getLogger()
+        self._newer_group = True
 
     def handle_timer(self, timer: str) -> None:
+        self._log.info("TIME TO LET THEM !!!!")
+        self._broadcast()
         self.priority += 1
         self._newer_group = True
 
@@ -29,25 +32,12 @@ class EnergyStationProtocol(IProtocol):
         self._update_clock_on_receive(default_message.lamport_clock)
 
         if self._newer_group:
+            self._log.info("There is a UAV which wants to enter the Critical Section!")
             self._newer_group = False
             self.provider.schedule_timer(
                 "",
                 self.provider.current_time() + 15
             )
-
-        response = EnergyStationMessage.model_construct(
-            lamport_clock=0,
-            priority=self.priority,
-            sender=Sender.model_construct(
-                agent=Agent.ENERGY_STATION,
-                id=self.provider.get_id()
-            ),
-        )
-        command = SendMessageCommand(
-            response.model_dump_json(),
-            default_message.sender.id
-        )
-        self.provider.send_communication_command(command)
 
     def _update_clock_on_receive(self, lamport_clock: int) -> None:
         new_lamport_cock = max(self.lamport_clock, lamport_clock) + 1

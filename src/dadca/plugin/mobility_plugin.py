@@ -41,8 +41,9 @@ class MobilityPlugin:
 
         self._dispatcher.register_handle_telemetry(telemetry_handler)
 
-    def has_reached_target(self, current_position) -> bool:
-        target_position = self._mission[self.current_waypoint]
+    def has_reached_target(self, current_position, target_position = None) -> bool:
+        if target_position is None:
+            target_position = self._mission[self.current_waypoint]
 
         return squared_distance(current_position, target_position) <= self._configuration.tolerance ** 2
 

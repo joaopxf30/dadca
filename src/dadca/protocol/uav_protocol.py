@@ -1,12 +1,12 @@
 import logging
 
 from gradysim.protocol.interface import IProtocol
-from gradysim.protocol.messages.communication import BroadcastMessageCommand
+from gradysim.protocol.messages.communication import BroadcastMessageCommand, SendMessageCommand
 from gradysim.protocol.messages.mobility import GotoCoordsMobilityCommand
 from gradysim.protocol.messages.telemetry import Telemetry
 from pydantic.v1.validators import uuid_validator
 
-from src.dadca.config import initial_waypoints, PATH, ENERGY_STATION_POSITION, RADIUS
+from src.dadca.config import initial_waypoints, PATH, ENERGY_STATION_POSITION, RADIUS, ENERGY_STATION_ID
 from src.dadca.constant import Agent, Timer
 from src.dadca.domain.package_message import PacketMessage
 from src.dadca.plugin.battery_configuration import BatteryConfiguration
@@ -22,6 +22,9 @@ class UAVProtocol(IProtocol):
     _log: logging.Logger
     _mobility_plugin: MobilityPlugin
     _battery_plugin: BatteryPlugin
+    _to_heartbeat: bool
+    _waiting_position: Point | None = None
+
     lamport_clock: int
     packet_count: int
     wait: float = 0
@@ -35,6 +38,7 @@ class UAVProtocol(IProtocol):
         self._mobility_plugin = MobilityPlugin(self, MobilityConfiguration())
         self._battery_plugin = BatteryPlugin(self, BatteryConfiguration())
 
+        self._to_heartbeat = True
         self.packet_count = 0
         self.lamport_clock = 0
 
@@ -91,7 +95,20 @@ class UAVProtocol(IProtocol):
             raise NotImplementedError(f"There is no current support to agent {default_message.sender.agent}")
 
     def handle_telemetry(self, telemetry: Telemetry) -> None:
-        pass
+        if self._waiting_position:
+            current_position = telemetry.current_position
+
+            if self._mobility_plugin.has_reached_target(current_position, self._waiting_position):
+                self._waiting_position = None
+                message = DefaultMessage.model_construct(
+                    lamport_clock=self.lamport_clock,
+                    sender=Sender.model_construct(
+                        agent=Agent.UAV,
+                        id=self.provider.get_id()
+                    )
+                )
+                command = SendMessageCommand(message.model_dump_json(), ENERGY_STATION_ID)
+                self.provider.send_communication_command(command)
 
     def _start_flight(self):
         self.provider.schedule_timer(
@@ -101,11 +118,12 @@ class UAVProtocol(IProtocol):
         self.delay()
 
     def _send_heartbeat(self) -> None:
-        self._broadcast()
-        self.provider.schedule_timer(
-            Timer.HEARTBEAT.value,
-            self.provider.current_time() + 1
-        )
+        if self._to_heartbeat:
+            self._broadcast()
+            self.provider.schedule_timer(
+                Timer.HEARTBEAT.value,
+                self.provider.current_time() + 1
+            )
 
     def _broadcast(self):
         self.lamport_clock += 1
@@ -137,12 +155,13 @@ class UAVProtocol(IProtocol):
 
     def _move_to_waiting_area_energy_station(self) -> None:
         self._mobility_plugin.on_mission = False
+        self._to_heartbeat = False
 
-        current_point = self._battery_plugin.critical_battery_position
-        direction = current_point - ENERGY_STATION_POSITION
-        waiting_point = ENERGY_STATION_POSITION + direction * (RADIUS/direction.compute_euclidean_norm())
+        current_position = self._battery_plugin.critical_battery_position
+        direction = current_position - ENERGY_STATION_POSITION
+        self._waiting_position = ENERGY_STATION_POSITION + direction * (RADIUS / direction.compute_euclidean_norm())
 
-        mobility_command = GotoCoordsMobilityCommand(*waiting_point)
+        mobility_command = GotoCoordsMobilityCommand(*self._waiting_position)
         self.provider.send_mobility_command(mobility_command)
 
     def _enter_energy_station(self):
