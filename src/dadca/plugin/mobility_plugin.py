@@ -9,6 +9,7 @@ from gradysim.protocol.position import Position, squared_distance
 
 from src.dadca.constant import Movement
 from src.dadca.plugin.mobility_configuration import MobilityConfiguration
+from src.geometry.point import Point
 
 
 class MobilityPlugin:
@@ -26,14 +27,17 @@ class MobilityPlugin:
 
         self.on_mission: bool = False
         self.ready_to_rendesvouz: Optional[bool] = None
+        self.current_position: Optional[Point] = None
         self.current_waypoint: Optional[int] = None
         self.current_direction: Optional[Movement] = None
 
     def _initialize_telemetry_handling(self):
         def telemetry_handler(_instance: IProtocol, telemetry: Telemetry) -> DispatchReturn | None:
+            self.current_position = Point(*telemetry.current_position)
+
             if (
                 self.current_waypoint is not None
-                and self.has_reached_target(telemetry.current_position)
+                and self.has_reached_target()
             ):
                 self.on_mission = True
                 self._progress_current_waypoint()
@@ -41,10 +45,10 @@ class MobilityPlugin:
 
         self._dispatcher.register_handle_telemetry(telemetry_handler)
 
-    def has_reached_target(self, current_position: Position) -> bool:
+    def has_reached_target(self) -> bool:
         target_position = self._mission[self.current_waypoint]
 
-        return squared_distance(current_position, target_position) <= self._configuration.tolerance ** 2
+        return squared_distance(self.current_position, target_position) <= self._configuration.tolerance ** 2
 
     def _progress_current_waypoint(self) -> None:
         if (

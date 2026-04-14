@@ -1,12 +1,12 @@
 import logging
 
 from gradysim.protocol.interface import IProtocol
-from gradysim.protocol.messages.communication import BroadcastMessageCommand, SendMessageCommand
+from gradysim.protocol.messages.communication import BroadcastMessageCommand
 from gradysim.protocol.messages.mobility import GotoCoordsMobilityCommand
 from gradysim.protocol.messages.telemetry import Telemetry
 
-from src.dadca.config import initial_waypoints, PATH, ENERGY_STATION_POSITION
-from src.dadca.constant import Agent, Timer, Movement
+from src.dadca.config import initial_waypoints, PATH, ENERGY_STATION_POSITION, RADIUS
+from src.dadca.constant import Agent, Timer
 from src.dadca.domain.package_message import PacketMessage
 from src.dadca.plugin.battery_configuration import BatteryConfiguration
 from src.dadca.plugin.battery_plugin import BatteryPlugin
@@ -14,6 +14,7 @@ from src.dadca.plugin.mobility_configuration import MobilityConfiguration
 from src.dadca.domain.uav_message import UAVMessage
 from src.dadca.domain.default_message import Sender, DefaultMessage
 from src.dadca.plugin.mobility_plugin import MobilityPlugin
+from src.geometry.point import Point
 
 
 class UAVProtocol(IProtocol):
@@ -50,7 +51,7 @@ class UAVProtocol(IProtocol):
             )
 
         elif timer == Timer.BATTERY.value:
-            self._move_to_energy_station()
+            self._move_to_waiting_area_energy_station()
             self._battery_plugin.recharge_battery()
 
         elif timer == Timer.CLEAR_RENDEZVOUS.value:
@@ -132,14 +133,16 @@ class UAVProtocol(IProtocol):
         self._mobility_plugin.travel_to_current_waypoint()
         self._mobility_plugin.ready_to_rendesvouz = False
 
-        self._log.info(
-            f"Rendezvous happened: now i am moving in {self._mobility_plugin.current_direction} "
-            f"to {self._mobility_plugin.current_waypoint}, "
+    def _move_to_waiting_area_energy_station(self) -> None:
+        self._mobility_plugin.on_mission = False
+
+        current_point = self._mobility_plugin.current_position
+        waiting_point = (
+            current_point + (ENERGY_STATION_POSITION - current_point).normalize()
+            * (1 - RADIUS/(ENERGY_STATION_POSITION - current_point).compute_euclidean_norm())
         )
 
-    def _move_to_energy_station(self):
-        self._mobility_plugin.on_mission = False
-        mobility_command = GotoCoordsMobilityCommand(*ENERGY_STATION_POSITION)
+        mobility_command = GotoCoordsMobilityCommand(*waiting_point)
         self.provider.send_mobility_command(mobility_command)
 
     def _enter_energy_station(self):
