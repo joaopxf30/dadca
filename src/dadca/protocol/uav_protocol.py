@@ -4,6 +4,7 @@ from gradysim.protocol.interface import IProtocol
 from gradysim.protocol.messages.communication import BroadcastMessageCommand
 from gradysim.protocol.messages.mobility import GotoCoordsMobilityCommand
 from gradysim.protocol.messages.telemetry import Telemetry
+from pydantic.v1.validators import uuid_validator
 
 from src.dadca.config import initial_waypoints, PATH, ENERGY_STATION_POSITION, RADIUS
 from src.dadca.constant import Agent, Timer
@@ -52,7 +53,6 @@ class UAVProtocol(IProtocol):
 
         elif timer == Timer.BATTERY.value:
             self._move_to_waiting_area_energy_station()
-            # self._battery_plugin.recharge_battery()
 
         elif timer == Timer.CLEAR_RENDEZVOUS.value:
             self._mobility_plugin.ready_to_rendesvouz = True
@@ -85,8 +85,7 @@ class UAVProtocol(IProtocol):
             self.packet_count = 0
 
         elif default_message.sender.agent == Agent.ENERGY_STATION:
-            # self.enter_energy_station()
-            self._battery_plugin.recharge_battery()
+            self._broadcast()
 
         else:
             raise NotImplementedError(f"There is no current support to agent {default_message.sender.agent}")
@@ -102,9 +101,15 @@ class UAVProtocol(IProtocol):
         self.delay()
 
     def _send_heartbeat(self) -> None:
-        self.lamport_clock += 1
+        self._broadcast()
+        self.provider.schedule_timer(
+            Timer.HEARTBEAT.value,
+            self.provider.current_time() + 1
+        )
 
-        default_message = UAVMessage.model_construct(
+    def _broadcast(self):
+        self.lamport_clock += 1
+        uav_message = UAVMessage.model_construct(
             lamport_clock=self.lamport_clock,
             packet_count=self.packet_count,
             do_rendezvous=False,
@@ -114,11 +119,8 @@ class UAVProtocol(IProtocol):
                 id=self.provider.get_id()
             )
         )
-
-        command = BroadcastMessageCommand(default_message.model_dump_json())
+        command = BroadcastMessageCommand(uav_message.model_dump_json())
         self.provider.send_communication_command(command)
-
-        self.provider.schedule_timer(Timer.HEARTBEAT.value, self.provider.current_time() + 1)
 
     def _update_clock_on_receive(self, lamport_clock: int) -> None:
         new_lamport_cock = max(self.lamport_clock, lamport_clock) + 1
