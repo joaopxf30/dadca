@@ -9,7 +9,6 @@ from gradysim.protocol.position import Position, squared_distance
 
 from src.dadca.constant import Movement
 from src.dadca.plugin.mobility_configuration import MobilityConfiguration
-from src.geometry.point import Point
 
 
 class MobilityPlugin:

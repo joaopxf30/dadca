@@ -20,14 +20,11 @@ class BatteryPlugin:
         self._logger = logging.getLogger()
 
         self._previous_position: Position | None = None
-        self.critical_battery_postion: Point | None = None
+        self.critical_battery_position: Point | None = None
         self.is_critical = False
         self.battery: float = 100
 
         self._initialize_telemetry_handling()
-
-        self._critical_battery_action: Callable | None = None
-        self._recharge_battery_action: Callable | None = None
 
     def _initialize_telemetry_handling(self):
         def telemetry_handler(_instance: IProtocol, telemetry: Telemetry) -> None:
@@ -82,8 +79,5 @@ class BatteryPlugin:
             self.battery = 100
             self.is_critical = False
 
-            if self._recharge_battery_action is None:
-                raise RuntimeError("Recharge battery action not set yet")
-
             self._logger.info("Battery fully charged. Agent is returning to mission")
-            self._recharge_battery_action()
+
