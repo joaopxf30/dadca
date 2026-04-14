@@ -52,7 +52,7 @@ class UAVProtocol(IProtocol):
 
         elif timer == Timer.BATTERY.value:
             self._move_to_waiting_area_energy_station()
-            self._battery_plugin.recharge_battery()
+            # self._battery_plugin.recharge_battery()
 
         elif timer == Timer.CLEAR_RENDEZVOUS.value:
             self._mobility_plugin.ready_to_rendesvouz = True
@@ -137,10 +137,8 @@ class UAVProtocol(IProtocol):
         self._mobility_plugin.on_mission = False
 
         current_point = self._battery_plugin.critical_battery_position
-        waiting_point = (
-            current_point + (ENERGY_STATION_POSITION - current_point).normalize()
-            * (1 - RADIUS/(ENERGY_STATION_POSITION - current_point).compute_euclidean_norm())
-        )
+        direction = current_point - ENERGY_STATION_POSITION
+        waiting_point = ENERGY_STATION_POSITION + direction * (RADIUS/direction.compute_euclidean_norm())
 
         mobility_command = GotoCoordsMobilityCommand(*waiting_point)
         self.provider.send_mobility_command(mobility_command)
