@@ -136,7 +136,7 @@ class UAVProtocol(IProtocol):
     def _move_to_waiting_area_energy_station(self) -> None:
         self._mobility_plugin.on_mission = False
 
-        current_point = self._mobility_plugin.current_position
+        current_point = self._battery_plugin.critical_battery_postion
         waiting_point = (
             current_point + (ENERGY_STATION_POSITION - current_point).normalize()
             * (1 - RADIUS/(ENERGY_STATION_POSITION - current_point).compute_euclidean_norm())

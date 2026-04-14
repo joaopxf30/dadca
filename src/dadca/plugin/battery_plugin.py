@@ -9,6 +9,7 @@ from gradysim.protocol.position import squared_distance, Position
 from src.dadca.config import ENERGY_STATION_POSITION
 from src.dadca.constant import Timer
 from src.dadca.plugin.battery_configuration import BatteryConfiguration
+from src.geometry.point import Point
 
 
 class BatteryPlugin:
@@ -19,6 +20,7 @@ class BatteryPlugin:
         self._logger = logging.getLogger()
 
         self._previous_position: Position | None = None
+        self.critical_battery_postion: Point | None = None
         self.is_critical = False
         self.battery: float = 100
 
@@ -40,6 +42,7 @@ class BatteryPlugin:
                     and self.has_reached_critical_battery(current_position)
                 ):
                     self.is_critical = True
+                    self.critical_battery_position = Point(*current_position)
                     self._logger.info("Critical battery has been reached. Agent is moving to Energy Station")
 
                     self._instance.provider.schedule_timer(
