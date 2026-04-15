@@ -12,31 +12,38 @@ from src.dadca.domain.energy_station_message import EnergyStationMessage
 class EnergyStationProtocol(IProtocol):
     _log: logging.Logger
     lamport_clock: int
-    priority: int
+    number_uavs: int
+    group: int
     _newer_group: bool
+    _never_again: bool
 
     def initialize(self) -> None:
         self.lamport_clock = 0
-        self.priority = 1
+        self.number_uavs = 0
+        self.group = 1
         self._log = logging.getLogger()
         self._newer_group = True
+        self._never_again = False
 
     def handle_timer(self, timer: str) -> None:
-        self._log.info("TIME TO LET THEM !!!!")
+        self._log.info(f"There are {self.number_uavs} UAVs in the group")
         self._broadcast()
-        self.priority += 1
+
+        self.group += 1
+        self.number_uavs = 0
         self._newer_group = True
 
     def handle_packet(self, default_message: str) -> None:
         default_message = DefaultMessage.model_validate_json(default_message)
         self._update_clock_on_receive(default_message.lamport_clock)
+        self.number_uavs += 1
 
-        if self._newer_group:
-            self._log.info("There is a UAV which wants to enter the Critical Section!")
+        if self._newer_group and not self._never_again:
+            self._never_again = True
             self._newer_group = False
             self.provider.schedule_timer(
                 "",
-                self.provider.current_time() + 15
+                self.provider.current_time() + 100
             )
 
     def _update_clock_on_receive(self, lamport_clock: int) -> None:
@@ -46,7 +53,8 @@ class EnergyStationProtocol(IProtocol):
     def _broadcast(self):
         response = EnergyStationMessage.model_construct(
             lamport_clock=0,
-            priority=self.priority,
+            priority=self.group,
+            number_uavs=self.number_uavs,
             sender=Sender.model_construct(
                 agent=Agent.ENERGY_STATION,
                 id=self.provider.get_id()

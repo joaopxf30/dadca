@@ -11,6 +11,7 @@ class Agent(Enum):
 class Timer(Enum):
     BATTERY = "BATTERY"
     CLEAR_RENDEZVOUS = "CLEAR_RENDEZVOUS"
+    CRITICAL_SECTION = "CRITICAL_SECTION"
     HEARTBEAT = "HEARTBEAT"
     START_MISSION = "START_MISSION"
 
@@ -18,3 +19,9 @@ class Timer(Enum):
 class Movement(Enum):
     FORWARD = 1
     BACKWARD = -1
+
+
+class CriticalSectionStatus(Enum):
+    RELEASED = auto()
+    WANTED = auto()
+    HELD = auto()

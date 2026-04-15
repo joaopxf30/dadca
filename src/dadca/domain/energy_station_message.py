@@ -2,4 +2,4 @@ from src.dadca.domain.default_message import DefaultMessage
 
 
 class EnergyStationMessage(DefaultMessage):
-    priority: int
+    number_uavs: int

@@ -31,6 +31,12 @@ class Vector:
 
         return Vector(x, y, z)
 
+    def rotate(self, angle: float) -> "Vector":
+        x = math.cos(angle) * self.x - math.sin(angle) * self.y
+        y = math.sin(angle) * self.x + math.cos(angle) * self.y
+
+        return Vector(x, y, self.z)
+
     def compute_euclidean_norm(self) -> float:
         p_norm_2 = math.sqrt(self.x ** 2 + self.y ** 2 + self.z ** 2)
 
